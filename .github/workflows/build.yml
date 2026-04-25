@@ -1,39 +1,33 @@
-name: Build Plugin
-on: [push, pull_request]
+name: Build Wii U Plugin
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:22.04
-      options: --privileged # 일부 devkitPro 설치에 필요할 수 있음
+    container: devkitpro/devkitppc:latest
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install devkitPro pacman and dependencies
+      - name: Setup environment
         run: |
-          apt-get update && apt-get install -y wget ca-certificates gnupg git
-          wget -qO - https://apt.devkitpro.org/devkitpro-key.gpg | gpg --dearmor | tee /etc/apt/trusted.gpg.d/devkitpro.gpg >/dev/null
-          echo "deb https://apt.devkitpro.org/debian/ stable main" | tee /etc/apt/sources.list.d/devkitpro.list
-          apt-get update
-          apt-get install -y devkitpro-pacman
-
-      - name: Install Wii U dev tools
-        run: |
-          dkp-pacman -Syu --noconfirm
-          echo "" | dkp-pacman -S wiiu-dev --noconfirm
-
-      - name: Build and install WUPS
-        run: |
-          git clone https://github.com/wiiu-env/WiiUPluginSystem.git /opt/devkitpro/wups
-          cd /opt/devkitpro/wups
-          make install
+          # dkp-pacman 403 오류가 자주 발생하므로 설치 시도를 건너뛰고 
+          # 기본 이미지에 포함된 도구만 사용합니다.
+          echo "Using pre-installed tools in devkitpro/devkitppc:latest"
 
       - name: Build plugin
         run: |
           export DEVKITPRO=/opt/devkitpro
           export DEVKITPPC=/opt/devkitpro/devkitPPC
+          export PATH=$DEVKITPRO/tools/bin:$PATH
           make
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
