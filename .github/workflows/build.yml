@@ -3,25 +3,37 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitppc:latest
+    container:
+      image: ubuntu:22.04
+      options: --privileged # 일부 devkitPro 설치에 필요할 수 있음
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install devkitPro tools
+      - name: Install devkitPro pacman and dependencies
         run: |
-          sudo dkp-pacman -Syu --noconfirm
-          echo "" | sudo dkp-pacman -S wiiu-dev --noconfirm
+          apt-get update && apt-get install -y wget ca-certificates gnupg git
+          wget -qO - https://apt.devkitpro.org/devkitpro-key.gpg | gpg --dearmor | tee /etc/apt/trusted.gpg.d/devkitpro.gpg >/dev/null
+          echo "deb https://apt.devkitpro.org/debian/ stable main" | tee /etc/apt/sources.list.d/devkitpro.list
+          apt-get update
+          apt-get install -y devkitpro-pacman
+
+      - name: Install Wii U dev tools
+        run: |
+          dkp-pacman -Syu --noconfirm
+          echo "" | dkp-pacman -S wiiu-dev --noconfirm
 
       - name: Build and install WUPS
         run: |
-          git clone https://github.com/wiiu-env/WiiUPluginSystem.git /tmp/WiiUPluginSystem
-          cd /tmp/WiiUPluginSystem
+          git clone https://github.com/wiiu-env/WiiUPluginSystem.git /opt/devkitpro/wups
+          cd /opt/devkitpro/wups
           make install
 
       - name: Build plugin
         run: |
-          cd /home/ubuntu/wiiu-power-led-off && make
+          export DEVKITPRO=/opt/devkitpro
+          export DEVKITPPC=/opt/devkitpro/devkitPPC
+          cd /github/workspace && make # 경로 수정
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
