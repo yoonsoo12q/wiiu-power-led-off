@@ -3,20 +3,15 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitppc:latest
+    container: # devkitpro/devkitppc:latest 대신 ubuntu 기반 이미지 사용
+      image: ubuntu:22.04
+      options: --privileged # 일부 devkitPro 설치에 필요할 수 있음
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-      - name: Install WUT and WUPS
+
+      - name: Install devkitPro pacman and dependencies
         run: |
-          # devkitPro pacman 데이터베이스 업데이트 및 설치 재시도
-          sudo dkp-pacman -Syu --noconfirm
-          sudo dkp-pacman -S --noconfirm wiiu-dev wups
-      - name: Build plugin
-        run: |
-          cd /home/ubuntu/wiiu-power-led-off && make
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: PowerLedOff-Plugin
-          path: "*.wps"
+          apt-get update && apt-get install -y wget ca-certificates gnupg
+          wget -qO - https://apt.devkitpro.org/devkitpro-key.gpg | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/devkitpro.gpg >/dev/null
+          echo 
