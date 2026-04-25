@@ -10,27 +10,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: devkitpro/devkitppc:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup devkitPro
-        uses: devkitpro/setup-devkitpro@v1
-        with:
-          # 필요한 도구들을 명시적으로 지정하여 환경을 구축합니다.
-          dkp-packages: |
-            devkitPPC
-            wut
-            wups
-            libutilswut
-
       - name: Build plugin
         run: |
-          # 환경 변수 설정 후 빌드 진행
+          # 필요한 패키지를 설치합니다. dkp-pacman의 일시적 오류를 대비해 재시도 로직을 포함합니다.
+          for i in {1..5}; do /opt/devkitpro/pacman/bin/dkp-pacman -Syu --noconfirm wut wups libutilswut && break || sleep 15; done
+          
+          # 환경 변수 설정
+          export DEVKITPRO=/opt/devkitpro
+          export DEVKITPPC=/opt/devkitpro/devkitPPC
+          export PATH=$DEVKITPRO/tools/bin:$PATH
+          
+          # 빌드 수행
           make
-        env:
-          DEVKITPRO: /opt/devkitpro
-          DEVKITPPC: /opt/devkitpro/devkitPPC
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
