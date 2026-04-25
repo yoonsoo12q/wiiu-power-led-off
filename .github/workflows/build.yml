@@ -10,23 +10,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: devkitpro/devkitppc:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup environment
-        run: |
-          # dkp-pacman 403 오류가 자주 발생하므로 설치 시도를 건너뛰고 
-          # 기본 이미지에 포함된 도구만 사용합니다.
-          echo "Using pre-installed tools in devkitpro/devkitppc:latest"
+      - name: Setup devkitPro
+        uses: devkitpro/setup-devkitpro@v1
+        with:
+          # 필요한 도구들을 명시적으로 지정하여 환경을 구축합니다.
+          dkp-packages: |
+            devkitPPC
+            wut
+            wups
+            libutilswut
 
       - name: Build plugin
         run: |
-          export DEVKITPRO=/opt/devkitpro
-          export DEVKITPPC=/opt/devkitpro/devkitPPC
-          export PATH=$DEVKITPRO/tools/bin:$PATH
+          # 환경 변수 설정 후 빌드 진행
           make
+        env:
+          DEVKITPRO: /opt/devkitpro
+          DEVKITPPC: /opt/devkitpro/devkitPPC
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
