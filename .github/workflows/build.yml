@@ -6,15 +6,17 @@ jobs:
     container: devkitpro/devkitppc:latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4  # v3 -> v4로 변경
+        uses: actions/checkout@v4
       - name: Install WUT and WUPS
         run: |
-          sudo dkp-pacman -Syu --noconfirm wiiu-dev wups
+          # devkitPro pacman 데이터베이스 업데이트 및 설치 재시도
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --noconfirm wiiu-dev wups
       - name: Build plugin
         run: |
           cd /home/ubuntu/wiiu-power-led-off && make
       - name: Upload artifact
-        uses: actions/upload-artifact@v4  # v3 -> v4로 변경
+        uses: actions/upload-artifact@v4
         with:
           name: PowerLedOff-Plugin
-          path: '*.wps'
+          path: "*.wps"
