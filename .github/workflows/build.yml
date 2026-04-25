@@ -4,22 +4,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: devkitpro/devkitppc:latest # 다시 devkitpro/devkitppc 이미지 사용
+      image: ubuntu:22.04
+      options: --privileged # 일부 devkitPro 설치에 필요할 수 있음
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install devkitPro tools
+      - name: Install devkitPro pacman and dependencies
         run: |
-          # devkitPro pacman 데이터베이스 업데이트 및 wiiu-dev 설치
+          apt-get update && apt-get install -y wget ca-certificates gnupg git
+          wget -qO - https://apt.devkitpro.org/devkitpro-key.gpg | gpg --dearmor | tee /etc/apt/trusted.gpg.d/devkitpro.gpg >/dev/null
+          echo "deb https://apt.devkitpro.org/debian/ stable main" | tee /etc/apt/sources.list.d/devkitpro.list
+          apt-get update
+          apt-get install -y devkitpro-pacman
+
+      - name: Install Wii U dev tools
+        run: |
           dkp-pacman -Syu --noconfirm
           echo "" | dkp-pacman -S wiiu-dev --noconfirm
+
+      - name: Build and install WUPS
+        run: |
+          git clone https://github.com/wiiu-env/WiiUPluginSystem.git /opt/devkitpro/wups
+          cd /opt/devkitpro/wups
+          make install
 
       - name: Build plugin
         run: |
           export DEVKITPRO=/opt/devkitpro
           export DEVKITPPC=/opt/devkitpro/devkitPPC
-          cd /github/workspace && make
+          make # cd 명령 제거
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
