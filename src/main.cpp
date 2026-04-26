@@ -21,7 +21,7 @@ bool sEnableLedOff = true;
 
 void setPowerLedState(bool off) {
     // IOS /dev/smc 를 통해 SMC에 접근
-    IOSHandle fd = IOS_Open("/dev/smc", IOS_OPEN_READ_WRITE);
+    IOSHandle fd = IOS_Open("/dev/smc", IOS_OPEN_READWRITE);
     if (fd < 0) return;
 
     // ioctl로 LED 커맨드 전송
