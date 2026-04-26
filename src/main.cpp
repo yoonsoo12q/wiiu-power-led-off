@@ -1,7 +1,5 @@
 #include "utils/logger.h"
-#include <coreinit/dynload.h>
-#include <coreinit/energysaver.h>
-#include <coreinit/thread.h>
+#include <coreinit/ios.h>
 #include <wups.h>
 #include <wups/config_api.h>
 #include <wups/config/WUPSConfigItemBoolean.h>
@@ -17,34 +15,21 @@ WUPS_USE_STORAGE("power_led_off");
 #define ENABLE_LED_OFF_CONFIG_ID "enable_led_off"
 bool sEnableLedOff = true;
 
-// OSWriteI2C 함수 포인터
-typedef int (*OSWriteI2C_t)(int bus, int device, const void *data, int size);
-static OSWriteI2C_t sOSWriteI2C = nullptr;
-
-bool initI2C() {
-    OSDynLoad_Module coreinit;
-    if (OSDynLoad_Acquire("coreinit.rpl", &coreinit) != OS_DYNLOAD_OK) {
-        return false;
-    }
-    if (OSDynLoad_FindExport(coreinit, OS_DYNLOAD_EXPORT_FUNC,
-                              "OSWriteI2C", (void **)&sOSWriteI2C) != OS_DYNLOAD_OK) {
-        sOSWriteI2C = nullptr;
-        OSDynLoad_Release(coreinit);
-        return false;
-    }
-    OSDynLoad_Release(coreinit);
-    return true;
-}
+// SMC 커맨드 정의 (WiiUBrew 기준)
+#define SMC_CMD_PWRLED_ON   0x11
+#define SMC_CMD_PWRLED_OFF  0x12
 
 void setPowerLedState(bool off) {
-    if (!sOSWriteI2C) return;
-    if (off) {
-        uint8_t data[1] = { 0x12 }; // SMC_CMD_PWRLED_OFF
-        sOSWriteI2C(3, 0x50, data, 1);
-    } else {
-        uint8_t data[1] = { 0x11 }; // SMC_CMD_PWRLED_ON
-        sOSWriteI2C(3, 0x50, data, 1);
-    }
+    // IOS /dev/smc 를 통해 SMC에 접근
+    IOSHandle fd = IOS_Open("/dev/smc", IOS_OPEN_READ_WRITE);
+    if (fd < 0) return;
+
+    // ioctl로 LED 커맨드 전송
+    // vec[0]: 커맨드 바이트
+    uint8_t cmd = off ? SMC_CMD_PWRLED_OFF : SMC_CMD_PWRLED_ON;
+    IOS_Ioctl(fd, cmd, nullptr, 0, nullptr, 0);
+
+    IOS_Close(fd);
 }
 
 void boolItemChanged(ConfigItemBoolean *item, bool newValue) {
@@ -73,8 +58,6 @@ void ConfigMenuClosedCallback() {
 
 INITIALIZE_PLUGIN() {
     initLogging();
-
-    initI2C(); // OSWriteI2C 주소 획득
 
     WUPSConfigAPIOptionsV1 configOptions = {.name = "Power LED Off"};
     WUPSConfigAPI_Init(configOptions, ConfigMenuOpenedCallback, ConfigMenuClosedCallback);
